@@ -35,6 +35,8 @@ export interface Round {
 
 export interface Game {
   id: string
+  /** null = pre-auth local game on this device */
+  userId: string | null
   createdAt: string
   updatedAt: string
   mode: GameMode

@@ -6,7 +6,14 @@ import { Button } from '../components/ui/Button'
 import { Input, PlayerRow } from '../components/ui/Input'
 import { PickToggle } from '../components/ui/PickToggle'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { useAuth } from '../contexts/AuthContext'
 import { gameRepository } from '../db/gameRepository'
+import {
+  countOrphanGames,
+  importOrphanGames,
+  shouldShowOrphanPrompt,
+  skipOrphanImport,
+} from '../db/orphanGames'
 import { formatGameTitle } from '../lib/display'
 import { SOLO_MAX_SCORE, SOLO_ROUNDS } from '../lib/gameMode'
 import type { GameMode, GameSummary, TeamId } from '../types/game'
@@ -47,6 +54,7 @@ function buildFirstThrowOptions(
 
 export function HomePage() {
   const navigate = useNavigate()
+  const { user, signOut } = useAuth()
   const [playerA1, setPlayerA1] = useState('')
   const [playerA2, setPlayerA2] = useState('')
   const [playerB1, setPlayerB1] = useState('')
@@ -58,6 +66,8 @@ export function HomePage() {
   const [inProgress, setInProgress] = useState<GameSummary[]>([])
   const [creating, setCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [orphanCount, setOrphanCount] = useState(0)
+  const [importingOrphans, setImportingOrphans] = useState(false)
 
   const refreshInProgress = () => {
     gameRepository.listInProgress().then(setInProgress)
@@ -66,6 +76,27 @@ export function HomePage() {
   useEffect(() => {
     refreshInProgress()
   }, [])
+
+  useEffect(() => {
+    if (!shouldShowOrphanPrompt()) return
+    countOrphanGames().then(setOrphanCount)
+  }, [])
+
+  async function handleImportOrphans() {
+    setImportingOrphans(true)
+    try {
+      await importOrphanGames()
+      setOrphanCount(0)
+      refreshInProgress()
+    } finally {
+      setImportingOrphans(false)
+    }
+  }
+
+  function handleSkipOrphans() {
+    skipOrphanImport()
+    setOrphanCount(0)
+  }
 
   const isSolo = mode === 'solo'
 
@@ -143,12 +174,40 @@ export function HomePage() {
       theme="light"
       inverseHeader
       actions={
-        <Link to="/history" className="font-bold text-xs tracking-widest uppercase">
-          History
-        </Link>
+        <div className="flex flex-col items-end gap-0.5 text-xs font-bold tracking-widest uppercase">
+          <Link to="/history">History</Link>
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="text-white/70 hover:text-white"
+          >
+            Sign out
+          </button>
+        </div>
       }
     >
       <section className="w-full flex-1 space-y-6">
+        {user?.email && (
+          <p className="text-xs text-ink-muted text-center">Signed in as {user.email}</p>
+        )}
+
+        {orphanCount > 0 && (
+          <div className="w-full border-2 border-team-blue-deep rounded-lg bg-team-blue/10 p-4 space-y-3">
+            <p className="text-sm text-ink leading-relaxed">
+              Import {orphanCount} game{orphanCount === 1 ? '' : 's'} from this device to your
+              account? They will sync to the cloud.
+            </p>
+            <div className="flex gap-2">
+              <Button fullWidth onClick={handleImportOrphans} disabled={importingOrphans}>
+                {importingOrphans ? 'Importing…' : 'Import'}
+              </Button>
+              <Button variant="ghost-light" fullWidth onClick={handleSkipOrphans}>
+                Skip
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="w-full border-2 border-ink rounded-lg bg-white p-4 space-y-5">
           <h2 className="text-base font-extrabold uppercase tracking-wide text-ink">
             New game

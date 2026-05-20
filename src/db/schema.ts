@@ -47,6 +47,20 @@ export class CornholeDatabase extends Dexie {
             }
           }),
       )
+    this.version(4)
+      .stores({
+        games: 'id, userId, status, createdAt, updatedAt',
+        rounds: 'id, gameId, index',
+        bagThrows: 'id, gameId, roundIndex, sequence, [gameId+roundIndex]',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('games')
+          .toCollection()
+          .modify((game: Game) => {
+            if (game.userId === undefined) game.userId = null
+          }),
+      )
   }
 }
 

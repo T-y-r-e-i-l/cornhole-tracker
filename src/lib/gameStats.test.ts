@@ -5,6 +5,7 @@ import type { GameWithDetails } from '../types/game'
 function game(overrides: Partial<GameWithDetails>): GameWithDetails {
   return {
     id: 'g1',
+    userId: null,
     createdAt: '',
     updatedAt: '',
     mode: 'singles',

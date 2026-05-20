@@ -1,5 +1,7 @@
 import { v4 as uuid } from 'uuid'
 import { db } from './schema'
+import { getCurrentUserId, requireCurrentUserId } from '../lib/currentUser'
+import { afterGameMutation, deleteGameRemote } from './syncService'
 import type {
   BagThrow,
   Game,
@@ -56,12 +58,21 @@ export interface RepositionBagInput {
   rotationDeg: number
 }
 
+function belongsToCurrentUser(game: Game | undefined): boolean {
+  if (!game) return false
+  const userId = getCurrentUserId()
+  if (!userId) return false
+  return game.userId === userId
+}
+
 export const gameRepository = {
   async createGame(input: CreateGameInput): Promise<Game> {
+    const userId = requireCurrentUserId()
     const now = new Date().toISOString()
     const solo = input.mode === 'solo'
     const game: Game = {
       id: uuid(),
+      userId,
       createdAt: now,
       updatedAt: now,
       mode: input.mode,
@@ -86,16 +97,17 @@ export const gameRepository = {
       avgPointsA: null,
       avgPointsB: null,
       completedAt: null,
-      syncStatus: 'local',
+      syncStatus: 'pending',
       remoteId: null,
     }
     await db.games.add(game)
+    await afterGameMutation(game.id)
     return game
   },
 
   async getGame(id: string): Promise<GameWithDetails | null> {
     const game = await db.games.get(id)
-    if (!game) return null
+    if (!game || !belongsToCurrentUser(game)) return null
 
     const rounds = await db.rounds
       .where('gameId')
@@ -113,7 +125,9 @@ export const gameRepository = {
   },
 
   async listGames(): Promise<GameSummary[]> {
-    const games = await db.games.orderBy('createdAt').reverse().toArray()
+    const userId = requireCurrentUserId()
+    const games = await db.games.where('userId').equals(userId).toArray()
+    games.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
     return games.map((g) => ({
       id: g.id,
       createdAt: g.createdAt,
@@ -136,7 +150,7 @@ export const gameRepository = {
 
   async placeBag(input: PlaceBagInput): Promise<BagThrow | null> {
     const game = await db.games.get(input.gameId)
-    if (!game || game.status !== 'in_progress') return null
+    if (!game || !belongsToCurrentUser(game) || game.status !== 'in_progress') return null
 
     const bagsPerRound = getBagsPerRound(game.mode)
     if (game.currentThrowIndex >= bagsPerRound) return null
@@ -165,12 +179,13 @@ export const gameRepository = {
       })
     })
 
+    await afterGameMutation(game.id)
     return bag
   },
 
   async repositionBag(input: RepositionBagInput): Promise<BagThrow | null> {
     const game = await db.games.get(input.gameId)
-    if (!game || game.status !== 'in_progress') return null
+    if (!game || !belongsToCurrentUser(game) || game.status !== 'in_progress') return null
 
     const bag = await db.bagThrows.get(input.bagId)
     if (!bag || bag.gameId !== input.gameId) return null
@@ -187,13 +202,14 @@ export const gameRepository = {
 
     await db.bagThrows.put(updated)
     await db.games.update(game.id, { updatedAt: new Date().toISOString() })
+    await afterGameMutation(game.id)
 
     return updated
   },
 
   async undoLastBag(gameId: string): Promise<Game | null> {
     const game = await db.games.get(gameId)
-    if (!game || game.status !== 'in_progress') return null
+    if (!game || !belongsToCurrentUser(game) || game.status !== 'in_progress') return null
     if (game.currentThrowIndex <= 0) return null
 
     const bags = await this.getCurrentRoundBags(gameId, game.currentRoundIndex)
@@ -209,6 +225,7 @@ export const gameRepository = {
       })
     })
 
+    await afterGameMutation(gameId)
     return (await db.games.get(gameId)) ?? null
   },
 
@@ -221,7 +238,7 @@ export const gameRepository = {
 
   async submitRound(gameId: string): Promise<Game | null> {
     const game = await db.games.get(gameId)
-    if (!game || game.status !== 'in_progress') return null
+    if (!game || !belongsToCurrentUser(game) || game.status !== 'in_progress') return null
 
     const bagsPerRound = getBagsPerRound(game.mode)
     if (game.currentThrowIndex < bagsPerRound) return null
@@ -267,6 +284,7 @@ export const gameRepository = {
         })
       })
 
+      await afterGameMutation(gameId)
       return (await db.games.get(gameId)) ?? null
     }
 
@@ -322,6 +340,7 @@ export const gameRepository = {
       })
     })
 
+    await afterGameMutation(gameId)
     return (await db.games.get(gameId)) ?? null
   },
 
@@ -335,7 +354,7 @@ export const gameRepository = {
 
   async deleteGame(gameId: string): Promise<boolean> {
     const game = await db.games.get(gameId)
-    if (!game) return false
+    if (!game || !belongsToCurrentUser(game)) return false
 
     await db.transaction('rw', db.games, db.rounds, db.bagThrows, async () => {
       await db.bagThrows.where('gameId').equals(gameId).delete()
@@ -343,12 +362,13 @@ export const gameRepository = {
       await db.games.delete(gameId)
     })
 
+    await deleteGameRemote(gameId)
     return true
   },
 
   async createRematch(gameId: string): Promise<Game | null> {
     const source = await db.games.get(gameId)
-    if (!source) return null
+    if (!source || !belongsToCurrentUser(source)) return null
     return this.createGame({
       mode: source.mode,
       teamAName: source.teamAName,
