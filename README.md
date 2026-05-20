@@ -40,3 +40,4 @@ npm run build
 React, Vite, TypeScript, Tailwind CSS, Zustand (available), Dexie (IndexedDB), React Router.
 
 Data is stored locally in the browser. The schema includes `syncStatus` and `remoteId` fields for future cloud sync.
+# cornhole-tracker
