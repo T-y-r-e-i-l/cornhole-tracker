@@ -43,3 +43,4 @@ Data is stored locally in the browser. The schema includes `syncStatus` and `rem
 # cornhole-tracker
 # cornhole-tracker
 # cornhole-tracker
+# cornhole-tracker
