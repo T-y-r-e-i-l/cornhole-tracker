@@ -41,3 +41,4 @@ React, Vite, TypeScript, Tailwind CSS, Zustand (available), Dexie (IndexedDB), R
 
 Data is stored locally in the browser. The schema includes `syncStatus` and `remoteId` fields for future cloud sync.
 # cornhole-tracker
+# cornhole-tracker
