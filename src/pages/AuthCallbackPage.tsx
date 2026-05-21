@@ -14,11 +14,24 @@ export function AuthCallbackPage() {
     }
 
     const finish = async () => {
-      const { error: sessionError } = await supabase!.auth.getSession()
-      if (sessionError) {
-        setError(sessionError.message)
-        return
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get('code')
+
+      if (code) {
+        const { error: exchangeError } =
+          await supabase!.auth.exchangeCodeForSession(code)
+        if (exchangeError) {
+          setError(exchangeError.message)
+          return
+        }
+      } else {
+        const { error: sessionError } = await supabase!.auth.getSession()
+        if (sessionError) {
+          setError(sessionError.message)
+          return
+        }
       }
+
       navigate('/', { replace: true })
     }
 

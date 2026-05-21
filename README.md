@@ -33,9 +33,11 @@ Mobile-friendly web app for tracking cornhole games in real time with a top-down
    - `VITE_SUPABASE_ANON_KEY`
 4. Run the SQL in [`supabase/migrations/001_initial.sql`](supabase/migrations/001_initial.sql) in the Supabase SQL editor (or via CLI).
 5. In **Authentication → Providers → Email**, enable email sign-in.
-6. In **Authentication → URL configuration**, add redirect URLs:
+6. In **Authentication → URL configuration**, add redirect URLs (must match your live URL exactly):
    - Local: `http://localhost:5173/auth/callback`
-   - Production: `https://your-domain/auth/callback`
+   - Production: `https://your-domain/auth/callback` (no trailing slash)
+
+**Deployed on Vercel?** Commit `vercel.json` in this repo so `/auth/callback` serves the app (otherwise magic links show a Vercel `404 Not_Found` with an `sfo1::…` id). Redeploy after adding env vars or `vercel.json`.
 
 The anon key is safe to embed in the client; **Row Level Security** ensures each user only reads and writes their own games.
 

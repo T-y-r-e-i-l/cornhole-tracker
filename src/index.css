@@ -1,8 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
 @import 'tailwindcss';
 
 @theme {
   --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Nunito', var(--font-sans);
 
   --color-surface-dark: #121212;
   --color-surface-dark-elevated: #1c1c1c;
@@ -27,9 +29,18 @@
   --color-on-dark: #f5f5f5;
   --color-on-dark-muted: #a3a3a3;
 
+  --color-hero-peach: #fde8d4;
+  --color-hero-sky: #d4e8f7;
+  --color-lawn: #c8e6b0;
+  --color-sunset: #f5a962;
+
   --radius-card: 1rem;
+  --radius-card-soft: 1.25rem;
+  --radius-hero: 1.5rem;
   --radius-pill: 9999px;
   --radius-input: 0.75rem;
+
+  --shadow-card-soft: 0 8px 24px rgb(26 26 26 / 0.08);
 }
 
 html,
@@ -59,4 +70,30 @@ body.theme-light {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+@utility text-display {
+  font-family: var(--font-display);
+}
+
+@utility shadow-card-soft {
+  box-shadow: var(--shadow-card-soft);
+}
+
+@utility bg-hero-gradient {
+  background: linear-gradient(180deg, var(--color-hero-peach) 0%, var(--color-surface-cream) 100%);
+}
+
+@utility bg-hero-gradient-dark {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-hero-peach) 85%, transparent) 0%,
+    var(--color-surface-dark) 55%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe-only {
+    display: none;
+  }
 }
